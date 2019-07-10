@@ -1,4 +1,5 @@
 # EdiText
+
 Simple terminal-based text editor written in C
 
 ## Key features:
@@ -19,3 +20,10 @@ Simple terminal-based text editor written in C
 - Line numbers
 - Linking C compiler
 
+
+
+
+## Reference
+- https://viewsourcecode.org/snaptoken/kilo/index.html
+- Extras: - Spell Checker : https://www.youtube.com/watch?v=TrR-suFO4to
+          - 
