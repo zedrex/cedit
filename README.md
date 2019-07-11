@@ -1,4 +1,4 @@
-# EdiText
+# cedit
 
 
 Simple terminal-based text editor written in C
