@@ -5,54 +5,32 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/ioctl.h>
-//26
 #define ctrl(key) (key & 0x1f)
-
-struct editorSize
-{
-    int screenRow;
-    int screenColumn;
-    struct termios terminalDefault;
-};
-
-struct editorSize editor;
 
 void rawModeOff();
 void rawModeOn();
 void terminateProgram(char errorMessage[]);
 char readCharacter();
 void processInput();
-void refreshEditor();
 void standardExit();
-void loadEditor();
-int getWindowSize(int *rows, int *columns);
+
+struct termios terminalDefault;
+//To contain the terminal attributes
 
 void standardExit()
 {
-    write(STDOUT_FILENO, "\x1b[2J", 4);
-    write(STDOUT_FILENO, "\x1b[H", 3);
     exit(0);
 }
 
-//Prints lines of tildes
-void loadEditor()
-{
-    for (int i = 1; i <= 25; i++)
-    {
-        write(STDOUT_FILENO, "~\r\n", 3);
-    }
-}
 void rawModeOn()
 {
-    if (tcgetattr(STDIN_FILENO, &editor.terminalDefault) == -1)
+    if (tcgetattr(STDIN_FILENO, &terminalDefault) == -1)
     {
-        terminateProgram("tcgetattr");
+        terminateProgram("Tcgetattr error");
     }
-
     //Get Terminal Attributes
 
-    struct termios rawMode = editor.terminalDefault;
+    struct termios rawMode = terminalDefault;
 
     //Input flags
     rawMode.c_iflag &= ~(IXON | ICRNL | BRKINT | INPCK | ISTRIP);
@@ -102,13 +80,6 @@ void rawModeOn()
     atexit(rawModeOff);
 }
 
-void startEditor()
-{
-    if (getWindowSize(&editor.screenRow, &editor.screenColumn) == -1)
-    {
-        terminateProgram("Window Size Error");
-    }
-}
 char readCharacter()
 {
     int readReturn;
@@ -127,7 +98,12 @@ void processInput()
 {
     char character;
     character = readCharacter();
-    if ((character == ctrl('q')) || (character == ctrl('Q')))
+
+    if (!((character == ctrl('q')) || (character == ctrl('Q'))))
+    {
+        printf("You pressed %c\r\n", character); //Key presses
+    }
+    else
     {
         standardExit();
     }
@@ -135,64 +111,23 @@ void processInput()
 
 void rawModeOff()
 {
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &editor.terminalDefault) == -1)
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalDefault) == -1)
     {
-        terminateProgram("tcsetattr");
+        terminateProgram("Tcsetattr error");
     }
 }
 
-void terminateProgram(char errorMessage[]) // Exit with Error
+void terminateProgram(char errorMessage[])
 {
-    refreshEditor();
-    perror(errorMessage);
+    perror(errorMessage); //Show error message
     exit(1);
-}
-
-int getWindowSize(int *rows, int *columns)
-{
-    struct winsize windowSize;
-
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &windowSize) == -1 || windowSize.ws_col == 0)
-    {
-        return -1;
-    }
-    else
-    {
-        *columns = windowSize.ws_col;
-        *rows = windowSize.ws_row;
-        return 0;
-    }
-}
-/*
-void showFile(FILE *fp)
-{
-    refreshEditor();
-    char c;
-    do
-    {
-        c = getc(fp);
-        char l[1];
-        l[0] = c;
-        if (c != EOF)
-            write(STDOUT_FILENO, l, sizeof(l));
-    } while (c != EOF);
-}
-*/
-void refreshEditor()
-{
-    write(STDOUT_FILENO, "\x1b[2J", 4);
-    write(STDOUT_FILENO, "\x1b[H", 3);
-    loadEditor();
-    write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
 int main()
 {
     rawModeOn();
-
     while (1)
     {
-        refreshEditor();
         processInput();
     }
 
