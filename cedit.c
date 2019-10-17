@@ -193,15 +193,51 @@ void rawModeOn()
     terminateProgram("Tcgetattr Error!");
   atexit(rawModeOff);
 
-  struct termios raw = Cedit.terminalDefault;
-  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-  raw.c_oflag &= ~(OPOST);
-  raw.c_cflag |= (CS8);
-  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  raw.c_cc[VMIN] = 0;
-  raw.c_cc[VTIME] = 1;
+  struct termios rawMode = Cedit.terminalDefault;
 
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+  //Input flags
+  rawMode.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+  /*
+    c_iflag : Input Flags
+    Turning off:
+    IXON - Ctrl+S and Ctrl+Q (input transmission shortcuts)
+    ICRNL - Ctrl+M (carriage return)
+    BRKINT - Ctrl+C (terminate program)
+    INPCK - Parity Checking
+    ISTRIP - Strip 8th bit
+  */
+
+  //Output Flags
+  rawMode.c_oflag &= ~(OPOST);
+  /*
+    c_oflag : Output Flags
+    Turning off:
+    OPOST - Post processing of Output (Carriage return and newline formatting)
+  */
+
+  //Local Flags
+  rawMode.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
+  /*
+    c_lflag : Local Flags
+    Turning off:
+    ECHO - Echo to the terminal
+    ICANON - Canonical mode (Turning off causes keypresses to be processed one by one)
+    ISIG - Ctrl+C, Ctrl+Z
+    IEXTEN - Ctrl+V
+     */
+
+  //Control Flags
+  rawMode.c_cflag |= ~(CS8);
+  /*
+    c_cflag : Control Flags
+    Turning on:
+    CS8 - Set 8 bits per byte
+     */
+
+  rawMode.c_cc[VMIN] = 0;
+  rawMode.c_cc[VTIME] = 1;
+
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &rawMode) == -1)
     terminateProgram("Tcsetattr Error!");
 }
 
