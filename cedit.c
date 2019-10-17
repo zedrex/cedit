@@ -94,7 +94,7 @@ struct ceditConfig
   int terminalRows;
   int terminalColumns;
   int rowNum;
-  int dirty;
+  int modified;
   char *fileName;
   char statusMessage[80];
   time_t statusMessageTime;
@@ -157,7 +157,7 @@ int ceditReadCharacter();
 int getCursorPosition(int *rows, int *columns);
 int ceditRowCursorTransformCxtoRx(editorRow *row, int cursorX);
 int ceditRowCursorTransformRxToCx(editorRow *row, int rowX);
-int getWindowSize(int *rows, int *columns);
+int getTerminalSize(int *rows, int *columns);
 int isSeparator(int character);
 int ceditSyntaxColoring(int hl);
 char *ceditPrompt(char *prompt, void (*callback)(char *, int));
@@ -315,11 +315,11 @@ int getCursorPosition(int *rows, int *columns)
   return 0;
 }
 
-int getWindowSize(int *rows, int *columns)
+int getTerminalSize(int *rows, int *columns)
 {
-  struct winsize windowSize;
+  struct winsize terminalSize;
 
-  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &windowSize) == -1 || windowSize.ws_col == 0)
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &terminalSize) == -1 || terminalSize.ws_col == 0)
   {
     if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
       return -1;
@@ -327,8 +327,8 @@ int getWindowSize(int *rows, int *columns)
   }
   else
   {
-    *columns = windowSize.ws_col;
-    *rows = windowSize.ws_row;
+    *columns = terminalSize.ws_col;
+    *rows = terminalSize.ws_row;
     return 0;
   }
 }
@@ -622,7 +622,7 @@ void ceditInsertRow(int at, char *s, size_t length)
   ceditUpdateRow(&Cedit.row[at]);
 
   Cedit.rowNum++;
-  Cedit.dirty++;
+  Cedit.modified++;
 }
 
 void ceditFreeRow(editorRow *row)
@@ -641,7 +641,7 @@ void ceditDeleteRow(int at)
   for (int j = at; j < Cedit.rowNum - 1; j++)
     Cedit.row[j].index--;
   Cedit.rowNum--;
-  Cedit.dirty++;
+  Cedit.modified++;
 }
 
 void ceditRowInsertCharacter(editorRow *row, int at, int character)
@@ -653,7 +653,7 @@ void ceditRowInsertCharacter(editorRow *row, int at, int character)
   row->size++;
   row->characters[at] = character;
   ceditUpdateRow(row);
-  Cedit.dirty++;
+  Cedit.modified++;
 }
 
 void ceditRowAppendString(editorRow *row, char *s, size_t length)
@@ -663,7 +663,7 @@ void ceditRowAppendString(editorRow *row, char *s, size_t length)
   row->size += length;
   row->characters[row->size] = '\0';
   ceditUpdateRow(row);
-  Cedit.dirty++;
+  Cedit.modified++;
 }
 
 void ceditRowDeleteCharacter(editorRow *row, int at)
@@ -673,7 +673,7 @@ void ceditRowDeleteCharacter(editorRow *row, int at)
   memmove(&row->characters[at], &row->characters[at + 1], row->size - at);
   row->size--;
   ceditUpdateRow(row);
-  Cedit.dirty++;
+  Cedit.modified++;
 }
 
 /*** CEDIT OPERATIONS ***/
@@ -775,7 +775,7 @@ void ceditOpen(char *fileName)
   }
   free(line);
   fclose(fp);
-  Cedit.dirty = 0;
+  Cedit.modified = 0;
 }
 
 void ceditSave()
@@ -803,7 +803,7 @@ void ceditSave()
       {
         close(fd);
         free(buffer);
-        Cedit.dirty = 0;
+        Cedit.modified = 0;
         ceditSetStatusMessage("%d bytes written to disk", length);
         return;
       }
@@ -1047,9 +1047,9 @@ void ceditDrawStatusBar(struct bufferContainer *bc)
   char status[80], rStatus[80];
   int length = snprintf(status, sizeof(status), "%.20s - %d lines %s",
                         Cedit.fileName ? Cedit.fileName : "[No Name]", Cedit.rowNum,
-                        Cedit.dirty ? "(modified)" : "");
+                        Cedit.modified ? "(modified)" : "");
   int rLength = snprintf(rStatus, sizeof(rStatus), "%s | %d/%d",
-                         Cedit.syntax ? Cedit.syntax->fileType : "no ft", Cedit.cursorY + 1, Cedit.rowNum);
+                         Cedit.syntax ? Cedit.syntax->fileType : "Line number:", Cedit.cursorY + 1, Cedit.rowNum);
   if (length > Cedit.terminalColumns)
     length = Cedit.terminalColumns;
   appendBuffer(bc, status, length);
@@ -1231,7 +1231,7 @@ void ceditProcessKeypress()
     break;
 
   case ctrl('q'):
-    if (Cedit.dirty && quitCount > 0)
+    if (Cedit.modified && quitCount > 0)
     {
       ceditSetStatusMessage("Warning! File has unsaved changes. "
                             "Press ctrl+Q %d more times to quit.",
@@ -1319,13 +1319,13 @@ void startCedit()
   Cedit.columnOff = 0;
   Cedit.rowNum = 0;
   Cedit.row = NULL;
-  Cedit.dirty = 0;
+  Cedit.modified = 0;
   Cedit.fileName = NULL;
   Cedit.statusMessage[0] = '\0';
   Cedit.statusMessageTime = 0;
   Cedit.syntax = NULL;
 
-  if (getWindowSize(&Cedit.terminalRows, &Cedit.terminalColumns) == -1)
+  if (getTerminalSize(&Cedit.terminalRows, &Cedit.terminalColumns) == -1)
     terminateProgram("Window Size Error!");
   Cedit.terminalRows -= 2;
 }
