@@ -2,7 +2,7 @@
 
 # Cedit
 
-A lightweight terminal-based basic text editor written in C. This is a collaborative C project by freshman students.
+A lightweight terminal-based basic text editor written in C.
 ![](cedit.gif)
 
 
