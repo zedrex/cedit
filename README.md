@@ -1,8 +1,9 @@
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
 # Cedit
-
 A lightweight terminal-based basic text editor written in C.
+
+## Demo
 ![](cedit.gif)
 
 
